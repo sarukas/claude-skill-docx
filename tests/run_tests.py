@@ -45,10 +45,8 @@ DOCX_FIND_REPLACE = DOCX_SCRIPTS / "docx_find_replace.py"
 DOCX_ADD_COMMENTS = DOCX_SCRIPTS / "docx_add_comments.py"
 DOCX_VALIDATE = DOCX_SCRIPTS / "docx_validate.py"
 CONVERT_TO_MD = MARKDOWN_SCRIPTS / "convert_to_md.py"
-TEMPLATE_DOCX = DOCX_SCRIPTS / "wordtemplate2025.docx"  # Optional, SKIP if absent
-STYLE_FILE = DOCX_SCRIPTS / "exacaster.style"  # Falls back to example.style
-if not STYLE_FILE.exists():
-    STYLE_FILE = DOCX_SCRIPTS / "example.style"
+TEMPLATE_DOCX = DOCX_SCRIPTS / "wordtemplate2025.docx"
+STYLE_FILE = DOCX_SCRIPTS / "exacaster.style"
 
 REPORT_DIR = SCRIPT_DIR / "reports"
 
@@ -577,12 +575,12 @@ def test_template(art: ArtifactDir) -> TestResult:
 
 def test_style_file(art: ArtifactDir) -> TestResult:
     if not STYLE_FILE.exists():
-        return TestResult("test_style_file", "SKIP", notes="No style file found")
+        return TestResult("test_style_file", "SKIP", notes="exacaster.style not found")
     md = gen_minimal_md(art)
     r, out = _convert_md(art, md, "style_file.docx", ["--style", str(STYLE_FILE)])
     if r.returncode != 0:
         return TestResult("test_style_file", "FAIL", error=f"Exit code {r.returncode}", stderr=r.stderr)
-    # Style file has font_size: 11; check body text uses ~11pt
+    # exacaster.style has font_size: 11; check body text uses ~11pt
     from docx import Document
     doc = Document(str(out))
     # Find a body paragraph and check font size
@@ -1191,9 +1189,19 @@ def test_check_selection(art: ArtifactDir) -> TestResult:
 
 # ---------------------------------------------------------------------------
 # Module F: Markdown Conversion Tests (convert_to_md.py)
+# Integration tests - requires claude-skill-markdown installed as sibling
+# directory or at MARKDOWN_SCRIPTS path. All tests SKIP if not found.
+# The markdown skill has its own standalone test suite.
 # ---------------------------------------------------------------------------
 
+def _markdown_skill_available() -> bool:
+    """Check if the markdown skill's convert_to_md.py is accessible."""
+    return CONVERT_TO_MD.exists()
+
+
 def test_list_formats(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_list_formats", "SKIP", notes="Markdown skill not found (integration test)")
     r = run_tool(CONVERT_TO_MD, ["--list-formats"])
     if r.returncode != 0:
         return TestResult("test_list_formats", "FAIL", error=f"Exit code {r.returncode}", stderr=r.stderr)
@@ -1207,6 +1215,8 @@ def test_list_formats(art: ArtifactDir) -> TestResult:
 
 
 def test_check_deps(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_check_deps", "SKIP", notes="Markdown skill not found (integration test)")
     r = run_tool(CONVERT_TO_MD, ["--check-deps"])
     if r.returncode not in (0, 1):
         return TestResult("test_check_deps", "FAIL", error=f"Unexpected exit code {r.returncode}", stderr=r.stderr)
@@ -1217,6 +1227,8 @@ def test_check_deps(art: ArtifactDir) -> TestResult:
 
 
 def test_csv_to_md(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_csv_to_md", "SKIP", notes="Markdown skill not found (integration test)")
     csv_file = gen_csv(art)
     out = art.path("test_csv.md")
     r = run_tool(CONVERT_TO_MD, [str(csv_file), str(out)])
@@ -1233,6 +1245,8 @@ def test_csv_to_md(art: ArtifactDir) -> TestResult:
 
 
 def test_tsv_to_md(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_tsv_to_md", "SKIP", notes="Markdown skill not found (integration test)")
     tsv_file = gen_tsv(art)
     out = art.path("test_tsv.md")
     r = run_tool(CONVERT_TO_MD, [str(tsv_file), str(out)])
@@ -1249,6 +1263,8 @@ def test_tsv_to_md(art: ArtifactDir) -> TestResult:
 
 
 def test_html_to_md(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_html_to_md", "SKIP", notes="Markdown skill not found (integration test)")
     try:
         import html2text  # noqa: F401
     except ImportError:
@@ -1269,6 +1285,8 @@ def test_html_to_md(art: ArtifactDir) -> TestResult:
 
 
 def test_html_ignore_links(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_html_ignore_links", "SKIP", notes="Markdown skill not found (integration test)")
     try:
         import html2text  # noqa: F401
     except ImportError:
@@ -1286,6 +1304,8 @@ def test_html_ignore_links(art: ArtifactDir) -> TestResult:
 
 
 def test_xlsx_to_md(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_xlsx_to_md", "SKIP", notes="Markdown skill not found (integration test)")
     xlsx_file = gen_xlsx(art)
     if xlsx_file is None:
         return TestResult("test_xlsx_to_md", "SKIP", notes="openpyxl not installed")
@@ -1300,6 +1320,8 @@ def test_xlsx_to_md(art: ArtifactDir) -> TestResult:
 
 
 def test_xlsx_specific_sheets(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_xlsx_specific_sheets", "SKIP", notes="Markdown skill not found (integration test)")
     xlsx_file = gen_xlsx(art)
     if xlsx_file is None:
         return TestResult("test_xlsx_specific_sheets", "SKIP", notes="openpyxl not installed")
@@ -1316,6 +1338,8 @@ def test_xlsx_specific_sheets(art: ArtifactDir) -> TestResult:
 
 
 def test_xlsx_preserve_formulas(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_xlsx_preserve_formulas", "SKIP", notes="Markdown skill not found (integration test)")
     xlsx_file = gen_xlsx(art)
     if xlsx_file is None:
         return TestResult("test_xlsx_preserve_formulas", "SKIP", notes="openpyxl not installed")
@@ -1332,6 +1356,8 @@ def test_xlsx_preserve_formulas(art: ArtifactDir) -> TestResult:
 
 
 def test_xlsx_hidden_excluded(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_xlsx_hidden_excluded", "SKIP", notes="Markdown skill not found (integration test)")
     xlsx_file = gen_xlsx(art)
     if xlsx_file is None:
         return TestResult("test_xlsx_hidden_excluded", "SKIP", notes="openpyxl not installed")
@@ -1347,6 +1373,8 @@ def test_xlsx_hidden_excluded(art: ArtifactDir) -> TestResult:
 
 def test_docx_to_md_roundtrip(art: ArtifactDir) -> TestResult:
     """Convert comprehensive MD to DOCX, then back to MD."""
+    if not _markdown_skill_available():
+        return TestResult("test_docx_to_md_roundtrip", "SKIP", notes="Markdown skill not found (integration test)")
     docx = _get_test_docx(art)
     out = art.path("roundtrip.md")
     r = run_tool(CONVERT_TO_MD, [str(docx), str(out)])
@@ -1368,6 +1396,8 @@ def test_docx_to_md_roundtrip(art: ArtifactDir) -> TestResult:
 
 def test_batch_directory(art: ArtifactDir) -> TestResult:
     """Batch convert a directory with CSV and HTML files."""
+    if not _markdown_skill_available():
+        return TestResult("test_batch_directory", "SKIP", notes="Markdown skill not found (integration test)")
     batch_dir = art.path("batch_input")
     batch_dir.mkdir(parents=True, exist_ok=True)
     # Create CSV and HTML files
@@ -1390,6 +1420,8 @@ def test_batch_directory(art: ArtifactDir) -> TestResult:
 
 def test_batch_type_filter(art: ArtifactDir) -> TestResult:
     """Batch convert with type filter: only CSV."""
+    if not _markdown_skill_available():
+        return TestResult("test_batch_type_filter", "SKIP", notes="Markdown skill not found (integration test)")
     batch_dir = art.path("batch_filter_input")
     batch_dir.mkdir(parents=True, exist_ok=True)
     (batch_dir / "data.csv").write_text("X,Y\n3,4\n", encoding="utf-8")
@@ -1412,6 +1444,8 @@ def test_batch_type_filter(art: ArtifactDir) -> TestResult:
 
 
 def test_unsupported_extension(art: ArtifactDir) -> TestResult:
+    if not _markdown_skill_available():
+        return TestResult("test_unsupported_extension", "SKIP", notes="Markdown skill not found (integration test)")
     xyz_file = art.write_text("test.xyz", "some content")
     out = art.path("test_xyz.md")
     r = run_tool(CONVERT_TO_MD, [str(xyz_file), str(out)])
@@ -1719,8 +1753,9 @@ def main():
         missing.append(f"docx_add_comments.py: {DOCX_ADD_COMMENTS}")
     if not DOCX_VALIDATE.exists():
         missing.append(f"docx_validate.py: {DOCX_VALIDATE}")
-    if not CONVERT_TO_MD.exists():
-        missing.append(f"convert_to_md.py: {CONVERT_TO_MD}")
+    if not CONVERT_TO_MD.exists() and "F" in module_codes:
+        print(f"  NOTE: Markdown skill not found at {CONVERT_TO_MD}")
+        print("  Module F tests will be SKIPPED (integration tests require sibling install)")
 
     if missing:
         print("ERROR: Critical scripts not found:")
