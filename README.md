@@ -10,10 +10,10 @@ Clone into your project's `.claude/skills/` directory:
 git clone https://github.com/sarukas/claude-skill-docx .claude/skills/docx
 ```
 
-Or using community CLI tools:
+Or using the [skill](https://github.com/anthropics/skill) CLI:
 
 ```bash
-npx add-skill sarukas/claude-skill-docx
+npx skill install sarukas/claude-skill-docx
 ```
 
 Claude Code automatically discovers skills from `SKILL.md` files in `.claude/skills/`.
