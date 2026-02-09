@@ -1,0 +1,40 @@
+# Example DOCX Style Configuration
+# Copy and customize for your organization's branding.
+#
+# Usage:
+#   python scripts/md_to_docx_py.py input.md output.docx --style scripts/example.style
+#   node scripts/md_to_docx_js.mjs input.md output.docx --style scripts/example.style
+
+# Typography
+font_body: Arial
+font_heading: Arial
+font_code: Consolas
+
+# Body text size (pt)
+font_size: 11
+
+# Colors (hex, no #)
+color_heading: 2D3B4D
+color_body: 333333
+
+# Table header styling
+table_header_bg: 4472C4
+table_header_text: FFFFFF
+
+# Table body styling
+table_alt_row: F2F2F2
+table_banded_rows: true
+
+# Table borders
+table_border: CCCCCC
+table_border_size: 4
+
+# Table cell margins (twips, 28 = 0.05cm)
+table_cell_margin: 28
+
+# Table text size (pt)
+table_font_size: 10
+
+# Code block styling
+code_bg: F5F5F5
+code_font_size: 9
