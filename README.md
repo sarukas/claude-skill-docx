@@ -4,17 +4,19 @@ A Claude Code skill for the full DOCX document lifecycle: create from Markdown, 
 
 ## Installation
 
-Add this skill to your Claude Code project:
-
-```bash
-claude skill add --from https://github.com/sarukas/claude-skill-docx
-```
-
-Or manually clone into your project's `.claude/skills/` directory:
+Clone into your project's `.claude/skills/` directory:
 
 ```bash
 git clone https://github.com/sarukas/claude-skill-docx .claude/skills/docx
 ```
+
+Or using community CLI tools:
+
+```bash
+npx add-skill sarukas/claude-skill-docx
+```
+
+Claude Code automatically discovers skills from `SKILL.md` files in `.claude/skills/`.
 
 ### Dependencies
 
