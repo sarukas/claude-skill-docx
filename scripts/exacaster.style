@@ -1,0 +1,35 @@
+# Exacaster Brand Style Configuration
+
+# Typography
+font_body: Arial
+font_heading: Arial
+font_code: Consolas
+
+# Body text size (pt)
+font_size: 10.5
+
+# Colors (hex, no #)
+color_heading: 2D3B4D
+color_body: 333333
+
+# Table header styling
+table_header_bg: 2D3B4D
+table_header_text: FFFFFF
+
+# Table body styling
+table_alt_row: F2F4F7
+table_banded_rows: true
+
+# Table borders
+table_border: CCCCCC
+table_border_size: 4
+
+# Table cell margins (twips, 28 = 0.05cm)
+table_cell_margin: 56
+
+# Table text size (pt)
+table_font_size: 9.5
+
+# Code block styling
+code_bg: F5F5F5
+code_font_size: 9

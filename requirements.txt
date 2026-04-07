@@ -1,0 +1,12 @@
+# DOCX Skill Dependencies
+# Install: pip install -r requirements.txt
+
+# Core DOCX manipulation
+python-docx>=0.8.11
+lxml>=4.9.0
+defusedxml>=0.7.1
+
+# Markdown to DOCX creation (md_to_docx_py.py)
+mistune>=3.0.0
+Pillow>=10.1.0
+requests>=2.31.0
