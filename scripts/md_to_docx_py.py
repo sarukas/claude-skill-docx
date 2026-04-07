@@ -515,9 +515,7 @@ class DocxBuilder:
                 link_url = (tok.get("attrs") or {}).get("url", "") or tok.get("link", "")
                 self._add_hyperlink(paragraph, link_url, self._flatten_text(children))
             elif tp == "image":
-                img_src = (tok.get("attrs") or {}).get("url", "") or tok.get("src", "")
-                img_alt = self._flatten_text(tok.get("children", [])) or tok.get("alt", "")
-                self._add_image_inline(paragraph, img_src, img_alt)
+                self._add_image_inline(paragraph, tok.get("src", ""), tok.get("alt", ""))
             else:
                 # fallback – just dump text
                 paragraph.add_run(self._flatten_text(children) if children else raw)
@@ -832,9 +830,7 @@ class DocxBuilder:
             # Check if sole child is an image
             if len(children) == 1 and isinstance(children[0], dict) and children[0].get("type") == "image":
                 img = children[0]
-                img_src = (img.get("attrs") or {}).get("url", "") or img.get("src", "")
-                img_alt = self._flatten_text(img.get("children", [])) or img.get("alt", "")
-                self._add_image_block(img_src, img_alt)
+                self._add_image_block(img.get("src", ""), img.get("alt", ""))
             else:
                 p = self.doc.add_paragraph()
                 self._add_inline(p, children)

@@ -1,11 +1,6 @@
 ---
-allow_for_agent: false
-allow_for_user: true
-description: Full DOCX lifecycle - create from Markdown, read/inspect, edit with formatting
-  preservation, add comments, validate, and export. No Pandoc dependency. Supports
-  tracked changes, company templates, Mermaid diagrams, and 16 configurable style
-  settings.
 name: docx
+description: Full DOCX lifecycle - create from Markdown, read/inspect, edit with formatting preservation, add comments, validate, and export. No Pandoc dependency. Supports tracked changes, company templates, Mermaid diagrams, and 16 configurable style settings.
 ---
 
 # DOCX - Document Lifecycle Management
