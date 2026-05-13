@@ -63,7 +63,13 @@ python scripts/md_to_docx_py.py input.md output.docx --style scripts/example.sty
 
 **Title page auto-detection**: First `# H1` becomes title, paragraphs between H1 and first `---` become preamble, `---` acts as page break.
 
-**Template cover page (Python only)**: When template has a "Title" style paragraph, the converter replaces it with the document title and preserves all template formatting, images, and layout.
+**Template cover page (Python only)**: When template has a "Title" style paragraph, the converter replaces it with the document title and preserves all template formatting, images, and layout. Templates that use Normal or Heading styles for their cover area are treated as non-cover templates (body is cleared, branding stays in header/footer).
+
+**Title + H1 duplication (fixed)**: When `--title` is provided, the H1 is consumed by the title page and is NOT re-added to the document body. The old workaround (`--skip-h1`) is now a no-op in the `--title` path.
+
+**Footer auto-detection**: Before injecting a page-number paragraph the converter inspects the template's footer XML. If any footer already contains a `PAGE` field, `_setup_footer()` is skipped automatically — no `--no-pagination` flag needed. The converter prints `Template footer pagination detected` when this fires.
+
+**TOC with templates**: The converter clears the template body (including any live TOC the template contained). Use `--toc` to re-insert a live `TOC \o "1-3" \h \z \u` field; Word populates it on open (Ctrl+A, F9).
 
 ### Node.js Converter (Alternative)
 
@@ -276,7 +282,64 @@ python ooxml/scripts/pack.py unpacked_dir/ output.docx        # Repack (condense
 python ooxml/scripts/validate.py unpacked_dir/ --original document.docx  # Schema validation
 ```
 
-## 11. Troubleshooting
+## 11. Template Compatibility Notes
+
+### How template type is detected
+
+The converter distinguishes two template types automatically:
+
+| Condition | Template type | Body handling | Footer handling |
+|-----------|--------------|---------------|-----------------|
+| Template has a `Title`-style paragraph | Cover page template | Preserved + page break | Not injected |
+| No `Title`-style paragraph | Styled template | Body cleared (styles kept) | Injected only if no PAGE field in footer XML |
+
+**Styled templates** (most company templates): the header/footer provide branding; the body is cleared and refilled from Markdown.
+
+**Cover page templates**: the template cover is preserved and filled with title/date/preamble; body appended after a page break.
+
+### Post-conversion header placeholder update
+
+Styled templates often have static placeholder text in `word/header1.xml`. Update after conversion:
+
+```bash
+python scripts/docx_find_replace.py output.docx output.docx \
+  --find "Customer name" --replace "Acme Corp" --scope headers
+
+python scripts/docx_find_replace.py output.docx output.docx \
+  --find "22-05-2017" --replace "2026-05-13" --scope headers
+```
+
+### Known template: Exacaster proposal template
+
+Path: `/home/ally/workspace/rio/rio-proposal-engine/templates/brandbook/exacaster-word-proposal-template-2025.docx`
+
+Type: **Styled template** (branding in header/footer; no Title-style cover paragraph)
+
+Correct conversion command:
+
+```bash
+/usr/local/bin/python3.12 /home/ally/.claude/skills/sarukas-claude-skill-docx/scripts/md_to_docx_py.py \
+  input.md output.docx \
+  --template /path/to/exacaster-word-proposal-template-2025.docx \
+  --title "Document Title" \
+  --date "YYYY-MM-DD" \
+  --toc
+```
+
+Notes:
+- No `--no-pagination` needed (footer auto-detection handles it)
+- No `--skip-h1` needed (`--title` path no longer re-adds H1)
+- `--toc` required (template body including its original TOC field is cleared on conversion)
+- After generation, run header placeholder find-replace for: Customer name, date, Confidential proposal, DOC NO.
+- SVGs not supported by python-docx; convert to PNG first via Node.js sharp, then pass PNGs to converter
+
+## 12. Troubleshooting
+
+**Duplicate page numbers in footer**: Template already has a PAGE field and an extra one was injected. Fixed in current converter (auto-detects PAGE field in footer XML). Old workaround: add `--no-pagination`.
+
+**Duplicate title heading**: H1 appeared both on the title page and in the document body when `--title` was used. Fixed in current converter (`--title` no longer re-adds H1). Old workaround: add `--skip-h1`.
+
+**Duplicate TOC**: Cannot happen with current converter. Template body (including its original TOC field) is cleared before Markdown content is appended. Use `--toc` to insert a live field.
 
 **"Missing dependency"**: Run `pip install -r requirements.txt`
 

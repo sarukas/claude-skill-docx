@@ -768,10 +768,27 @@ class DocxBuilder:
                 self._render_token(tok)
 
     # -- lists ---------------------------------------------------------------
+    _BULLET_STYLES = ["List Bullet", "List Bullet 2", "List Bullet 3"]
+    _NUMBER_STYLES = ["List Number", "List Number 2", "List Number 3"]
+
+    def _get_list_style(self, ordered: bool, level: int) -> str:
+        """Return the Word built-in list style for this level.
+
+        Uses List Bullet / List Number family so Word renders proper list
+        markers via its numbering engine rather than literal unicode chars.
+        Falls back to Normal if the template omits these styles.
+        """
+        styles = self._NUMBER_STYLES if ordered else self._BULLET_STYLES
+        style_name = styles[min(level, len(styles) - 1)]
+        try:
+            self.doc.styles[style_name]
+        except KeyError:
+            style_name = "Normal"
+        return style_name
+
     def _add_list(self, token, level: int = 0):
         ordered = token.get("attrs", {}).get("ordered", False)
         children = token.get("children", [])
-        counter = token.get("attrs", {}).get("start", 1) or 1
 
         for item in children:
             if item.get("type") != "list_item":
@@ -782,26 +799,16 @@ class DocxBuilder:
                 tp = child.get("type", "")
                 # mistune v3 uses "block_text" for tight lists, "paragraph" for loose
                 if tp in ("paragraph", "block_text"):
-                    p = self.doc.add_paragraph()
-                    indent = Inches(0.25 + level * 0.25)
-                    hanging = Inches(0.25)
-                    p.paragraph_format.left_indent = indent + hanging
-                    p.paragraph_format.first_line_indent = -hanging
+                    if first_para:
+                        # Use Word's built-in list style — no manual bullet prefix
+                        p = self.doc.add_paragraph(style=self._get_list_style(ordered, level))
+                        first_para = False
+                    else:
+                        # Continuation paragraph within the same list item (rare in MD)
+                        p = self.doc.add_paragraph()
+                        p.paragraph_format.left_indent = Inches(0.5 + level * 0.25)
                     p.paragraph_format.space_before = Pt(1)
                     p.paragraph_format.space_after = Pt(1)
-
-                    if first_para:
-                        if ordered:
-                            prefix = f"{counter}. "
-                            counter += 1
-                        else:
-                            bullets = ["\u2022", "\u25E6", "\u25AA"]
-                            prefix = bullets[min(level, len(bullets) - 1)] + " "
-                        run = p.add_run(prefix)
-                        run.font.name = FONT_BODY
-                        run.font.size = Pt(10.5)
-                        first_para = False
-
                     self._add_inline(p, child.get("children", []))
                 elif tp == "list":
                     self._add_list(child, level + 1)
@@ -1129,6 +1136,27 @@ def _template_has_cover_page(doc) -> bool:
     return False
 
 
+def _template_has_footer_pagination(template_path: str) -> bool:
+    """Return True if any footer in the template already contains a PAGE field.
+
+    Reads the DOCX ZIP directly so this works before python-docx clears the body.
+    Used to avoid injecting a duplicate page-number paragraph when the template
+    footer already provides one (e.g. via a Structured Document Tag / SDT).
+    """
+    import zipfile as _zf
+    import re as _re
+    try:
+        with _zf.ZipFile(template_path) as zf:
+            for name in zf.namelist():
+                if _re.match(r'word/footer\d*\.xml', name):
+                    content = zf.read(name).decode('utf-8', errors='ignore')
+                    if _re.search(r'<w:instrText[^>]*>\s*PAGE\b', content):
+                        return True
+    except Exception:
+        pass
+    return False
+
+
 def _fill_template_cover(doc, title: str, preamble_text: str = "",
                          date: str | None = None):
     """Fill the template's cover page placeholders and clear remaining body content.
@@ -1272,11 +1300,14 @@ def convert(input_path: str, output_path: str, template_path: str | None = None,
 
     # --- Create document (second pass – uses template with correct styles) ---
     template_has_cover = False
+    template_has_footer_pg = False  # True when template footer already has PAGE field
     if template_path and os.path.isfile(template_path):
         print(f"Using template: {template_path}")
         doc = _open_template(template_path)
         # Check if template has a cover page (Title-styled paragraph)
         template_has_cover = _template_has_cover_page(doc)
+        # Check if template footer already provides page numbering
+        template_has_footer_pg = _template_has_footer_pagination(template_path)
         if template_has_cover:
             print("  Template cover page detected – preserving it")
         else:
@@ -1285,6 +1316,8 @@ def convert(input_path: str, output_path: str, template_path: str | None = None,
                 p._element.getparent().remove(p._element)
             for t in list(doc.tables):
                 t._element.getparent().remove(t._element)
+        if template_has_footer_pg:
+            print("  Template footer pagination detected – skipping footer injection")
     else:
         doc = Document()
 
@@ -1354,16 +1387,16 @@ def convert(input_path: str, output_path: str, template_path: str | None = None,
             # Body starts after the first HR
             body_tokens = tokens[first_hr_idx + 1:]
 
-            if not title:
-                pass
+            # When --title is explicitly provided, H1 was already rendered on the
+            # title page; don't re-add it to the body (prevents duplicate headings).
+            if title:
+                pass  # H1 consumed by title page; body starts cleanly after first HR
             elif skip_h1:
                 body_tokens = [t for t in body_tokens
                                if not (t.get("type") == "heading"
                                        and t.get("attrs", {}).get("level") == 1)
                                or t is not tokens[h1_idx]]
-                pass
-            else:
-                body_tokens = [tokens[h1_idx]] + body_tokens
+            # else: title auto-detected from H1, body_tokens already correct
 
             tokens = body_tokens
         elif effective_title and h1_idx is not None:
@@ -1383,8 +1416,9 @@ def convert(input_path: str, output_path: str, template_path: str | None = None,
         # Build DOCX body
         builder.render_tokens(tokens)
 
-        # Footer (pagination + copyright) – skip when template has its own
-        if not template_has_cover and (pagination or copyright_text):
+        # Footer – skip when template already provides page numbers (PAGE field in
+        # any footer XML). This is independent of whether the template has a cover page.
+        if not template_has_footer_pg and (pagination or copyright_text):
             _setup_footer(doc, pagination, copyright_text)
 
         # Save
